@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador FTTH GPON - Monitor en Vivo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #3b82f6; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --bg: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { font-size: 2rem; color: #1e293b; margin: 0; }
+        p.subtitle { color: #64748b; margin-top: 5px; }
+
+        .dashboard { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+        
+        /* Panel Izquierdo: Configuración */
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.85rem; color: #475569; }
+        input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 15px; box-sizing: border-box; }
+        
+        button { 
+            width: 100%; padding: 12px; background: var(--primary); color: white; 
+            border: none; border-radius: 8px; font-weight: 600; cursor: pointer; 
+            transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        button:hover { background: #2563eb; transform: translateY(-1px); }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        /* Panel Derecho: Monitor de Fases */
+        .monitor { background: #0f172a; color: #38bdf8; font-family: 'Courier New', monospace; padding: 20px; border-radius: 12px; min-height: 400px; position: relative; }
+        .phase { margin-bottom: 15px; opacity: 0.3; transition: all 0.5s ease; border-left: 2px solid #334155; padding-left: 15px; }
+        .phase.active { opacity: 1; border-left-color: var(--success); }
+        .phase-title { font-weight: bold; font-size: 1.1rem; color: #e2e8f0; margin-bottom: 5px; }
+        .phase-detail { font-size: 0.9rem; color: #94a3b8; }
+        .log-item { margin-top: 5px; color: #cbd5e1; font-size: 0.85rem; }
+        .highlight { color: var(--success); font-weight: bold; }
+        .error { color: var(--danger); font-weight: bold; }
+
+        /* Gráfica y Tabla */
+        .results-section { display: none; animation: fadeIn 1s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; color: #64748b; }
+        td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+        .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; }
+        .bg-video { background: #fff7ed; color: #c2410c; }
+        .bg-voz { background: #f0fdf4; color: #15803d; }
+        .bg-datos { background: #eff6ff; color: #1d4ed8; }
+
+        /* Loading Bar */
+        .progress-container { width: 100%; background: #334155; height: 4px; margin-top: 10px; border-radius: 2px; display: none; }
+        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: width 0.2s; }
+
+        @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📡 Simulador FTTH GPON</h1>
+        <p class="subtitle">Validación de Requisitos Técnicos en Tiempo Real</p>
+    </header>
+
+    <div class="dashboard">
+        <div>
+            <div class="card">
+                <h3>⚙️ Parámetros de Entrada</h3>
+                <label>Número de Usuarios (ONUs)</label>
+                <input type="number" id="numOnus" value="8" min="1" max="64">
+                
+                <label>Distancia Feeder (OLT-Splitter) km</label>
+                <input type="number" id="feederKm" value="20.0">
+                
+                <label>Distancia Drop (Splitter-ONU) km</label>
+                <input type="number" id="dropKm" value="2.0">
+
+                <button id="btnSimular" onclick="iniciarSecuencia()">
+                    <span>▶ INICIAR SIMULACIÓN</span>
+                </button>
+            </div>
+
+            <div id="resumenFinal" class="card results-section" style="text-align: center;">
+                <h3>Resultado Global</h3>
+                <div style="font-size: 2.5rem; margin: 10px 0;" id="iconoResultado">❓</div>
+                <div id="textoResultado" style="font-weight: bold; color: #64748b;">Esperando...</div>
+            </div>
+        </div>
+
+        <div class="monitor" id="monitor">
+            <div style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
+                >_ SYSTEM CONSOLE | STATUS: READY
+            </div>
+
+            <div id="fase1" class="phase">
+                <div class="phase-title">1. ANÁLISIS DE CAPA FÍSICA (Link Budget)</div>
+                <div class="phase-detail">Validando atenuación contra estándar ITU-T G.984...</div>
+                <div id="logFase1" class="log-item"></div>
+            </div>
+
+            <div id="fase2" class="phase">
+                <div class="phase-title">2. GENERACIÓN DE TRÁFICO (Triple Play)</div>
+                <div class="phase-detail">Simulando perfiles: Voz (CBR), Video (VBR), Datos.</div>
+                <div class="progress-container" id="progressBarCtn">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div id="logFase2" class="log-item"></div>
+            </div>
+
+            <div id="fase3" class="phase">
+                <div class="phase-title">3. EVALUACIÓN QoS (Jitter & Delay)</div>
+                <div class="phase-detail">Calculando métricas de rendimiento y DBA...</div>
+                <div class="card results-section" style="background: rgba(255,255,255,0.05); margin-top:10px; padding:10px;">
+                    <canvas id="graficaResultados" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card results-section" id="tablaResultados">
+        <h3>📋 Reporte Detallado de Métricas</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ONU ID</th>
+                    <th>Perfil de Servicio</th>
+                    <th>Delay (Latencia)</th>
+                    <th>Jitter (Estabilidad)</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCuerpo">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // --- Lógica de Animación y Simulación ---
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    async function iniciarSecuencia() {
+        // Reset UI
+        document.getElementById('btnSimular').disabled = true;
+        document.querySelectorAll('.phase').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.results-section').forEach(el => el.style.display = 'none');
+        document.getElementById('logFase1').innerHTML = "";
+        document.getElementById('logFase2').innerHTML = "";
+        
+        const onus = parseInt(document.getElementById('numOnus').value);
+        const feeder = parseFloat(document.getElementById('feederKm').value);
+        const drop = parseFloat(document.getElementById('dropKm').value);
+
+        // --- FASE 1: FÍSICA ---
+        document.getElementById('fase1').classList.add('active');
+        await sleep(600);
+        
+        const lossFiber = (feeder + drop) * 0.2;
+        const lossSplitter = 17.5; // 1:32 split
+        const margin = 2.5;
+        const totalLoss = lossFiber + lossSplitter + margin;
+        
+        const log1 = document.getElementById('logFase1');
+        log1.innerHTML += `> Calculando fibra (${feeder}+${drop}km)... <span class="highlight">${lossFiber.toFixed(2)} dB</span><br>`;
+        await sleep(500);
+        log1.innerHTML += `> Sumando inserción Splitter... <span class="highlight">${lossSplitter} dB</span><br>`;
+        await sleep(500);
+        log1.innerHTML += `> TOTAL LINK LOSS: <span style="color:#fff; font-size:1.1em">${totalLoss.toFixed(2)} dB</span><br>`;
+        
+        let fisicoAprobado = false;
+        if (totalLoss <= 28.0) {
+            log1.innerHTML += `> VERIFICACIÓN: <span class="highlight">✅ CUMPLE (Clase B+ < 28dB)</span>`;
+            fisicoAprobado = true;
+        } else {
+            log1.innerHTML += `> VERIFICACIÓN: <span class="error">❌ FALLO (Potencia insuficiente)</span>`;
+        }
+        await sleep(800);
+
+        // --- FASE 2: TRÁFICO ---
+        document.getElementById('fase2').classList.add('active');
+        const pBar = document.getElementById('progressBar');
+        document.getElementById('progressBarCtn').style.display = 'block';
+        const log2 = document.getElementById('logFase2');
+        
+        log2.innerHTML = "> Inicializando entorno SimPy (JavaScript Port)...<br>";
+        
+        // Simular barra de carga (Generación de paquetes)
+        for(let i=0; i<=100; i+=10) {
+            pBar.style.width = i + '%';
+            if(i % 30 === 0) log2.innerHTML += `> Generando paquetes [T=${i/10}s]...<br>`;
+            await sleep(150);
+        }
+        log2.innerHTML += "> <span class="highlight">Simulación de tráfico completada.</span>";
+        await sleep(500);
+
+        // --- FASE 3: QoS y RESULTADOS ---
+        document.getElementById('fase3').classList.add('active');
+        
+        // Generar Datos Aleatorios (Simulando lo que haría Python)
+        const resultados = [];
+        const servicios = ['Video Streaming 🎥', 'Voz VoIP 📞', 'Navegación Web 🌐'];
+        const clasesCSS = ['bg-video', 'bg-voz', 'bg-datos'];
+        
+        const labels = [];
+        const dataJitter = [];
+        const colores = [];
+
+        const tbody = document.getElementById('tablaCuerpo');
+        tbody.innerHTML = "";
+
+        for(let i=0; i<onus; i++) {
+            const tipoIdx = i % 3;
+            const servicio = servicios[tipoIdx];
+            let jitter, delay, color;
+
+            if (tipoIdx === 0) { // Video (Bursty)
+                jitter = Math.random() * 15 + 10; 
+                delay = Math.random() * 20 + 30;
+                color = '#f97316';
+            } else if (tipoIdx === 1) { // Voz (Estable)
+                jitter = Math.random() * 2 + 0.5; 
+                delay = Math.random() * 5 + 5;
+                color = '#22c55e';
+            } else { // Datos (Random)
+                jitter = Math.random() * 25 + 5; 
+                delay = Math.random() * 40 + 10;
+                color = '#3b82f6';
+            }
+
+            labels.push(`ONU ${i+1}`);
+            dataJitter.push(jitter);
+            colores.push(color);
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>ONU ${i+1}</b></td>
+                    <td><span class="badge ${clasesCSS[tipoIdx]}">${servicio}</span></td>
+                    <td>${delay.toFixed(1)} ms</td>
+                    <td>${jitter.toFixed(1)} ms</td>
+                    <td>${jitter < 20 ? '🟢 Óptimo' : '🟡 Aceptable'}</td>
+                </tr>
+            `;
+        }
+
+        // Mostrar Gráfica
+        document.querySelectorAll('.results-section').forEach(el => el.style.display = 'block');
+        renderizarGrafica(labels, dataJitter, colores);
+        
+        // Resultado Final
+        const icono = document.getElementById('iconoResultado');
+        const texto = document.getElementById('textoResultado');
+        if(fisicoAprobado) {
+            icono.innerText = "✅";
+            texto.innerText = "PROYECTO VIABLE";
+            texto.style.color = "#10b981";
+        } else {
+            icono.innerText = "❌";
+            texto.innerText = "NO VIABLE (Física)";
+            texto.style.color = "#ef4444";
+        }
+
+        document.getElementById('btnSimular').disabled = false;
+    }
+
+    let chartInstance = null;
+    function renderizarGrafica(labels, data, colors) {
+        const ctx = document.getElementById('graficaResultados').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+        
+        // Configuración oscura para que combine con el monitor
+        Chart.defaults.color = '#94a3b8';
+        
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Jitter (ms) - Menor es mejor',
+                    data: data,
+                    backgroundColor: colors,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: '#334155' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
