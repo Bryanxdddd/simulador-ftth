@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador FTTH GPON - Proyecto Final</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --bg: #f8fafc; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        /* Header */
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: var(--primary); }
+        p.subtitle { color: #64748b; font-size: 1.1rem; }
+
+        /* Tarjetas */
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        /* Controles */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 1rem; }
+        button:hover { background: #1d4ed8; }
+
+        /* Resultados */
+        .status-box { text-align: center; padding: 15px; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+        .status-ok { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+        .status-fail { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        
+        .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        .metric { text-align: center; padding: 10px; background: #f1f5f9; border-radius: 8px; }
+        .metric h4 { margin: 0; font-size: 0.8rem; color: #64748b; }
+        .metric div { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
+
+        /* Responsivo */
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📡 Simulador FTTH GPON</h1>
+        <p class="subtitle">Simulación de capa física y tráfico Triple Play</p>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h3>⚙️ Configuración</h3>
+            <div class="form-group">
+                <label>Usuarios (ONUs)</label>
+                <input type="number" id="numOnus" value="5" min="1" max="64">
+            </div>
+            <div class="form-group">
+                <label>Distancia OLT-Splitter (km)</label>
+                <input type="number" id="feederKm" value="20.0" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>Distancia Última Milla (km)</label>
+                <input type="number" id="dropKm" value="2.0" step="0.1">
+            </div>
+            <button onclick="ejecutarSimulacion()">▶ Correr Simulación</button>
+
+            <div id="resultadoFisico" style="display:none;">
+                <div class="metric-grid">
+                    <div class="metric"><h4>Pérdida Total</h4><div id="valPerdida">-- dB</div></div>
+                    <div class="metric"><h4>Margen</h4><div id="valMargen">-- dB</div></div>
+                    <div class="metric"><h4>Estado</h4><div id="valEstado">--</div></div>
+                </div>
+                <div id="statusBox" class="status-box"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Análisis de Rendimiento (Jitter/Delay)</h3>
+            <canvas id="graficaResultados"></canvas>
+            <div style="margin-top: 15px; font-size: 0.9rem; color: #666;">
+                * Simulación de 10 segundos de tráfico. <br>
+                <span style="color:#10b981">● Voz (CBR)</span> | 
+                <span style="color:#f59e0b">● Video (VBR)</span> | 
+                <span style="color:#3b82f6">● Datos (Best Effort)</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card" style="margin-top: 20px;">
+        <h3>📋 Reporte Detallado por ONU</h3>
+        <table style="width:100%; text-align: left; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #f1f5f9;">
+                    <th style="padding:10px;">ONU ID</th>
+                    <th>Servicio</th>
+                    <th>Delay Prom.</th>
+                    <th>Jitter</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCuerpo">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // --- LÓGICA DEL SIMULADOR (Portado de Python a JS) ---
+    
+    let chartInstance = null;
+
+    function ejecutarSimulacion() {
+        // 1. Obtener valores
+        const onus = parseInt(document.getElementById('numOnus').value);
+        const feeder = parseFloat(document.getElementById('feederKm').value);
+        const drop = parseFloat(document.getElementById('dropKm').value);
+
+        // 2. FASE FÍSICA (Cálculos)
+        // Atenuación 0.2 dB/km + Splitter (aprox 17dB) + Conectores (2dB)
+        const lossFiber = (feeder + drop) * 0.2;
+        const lossSplitter = 17.0; 
+        const margin = 2.0;
+        const totalLoss = lossFiber + lossSplitter + margin;
+        
+        // Mostrar Física
+        document.getElementById('resultadoFisico').style.display = 'block';
+        document.getElementById('valPerdida').innerText = totalLoss.toFixed(2) + " dB";
+        
+        const box = document.getElementById('statusBox');
+        if (totalLoss <= 28.0) {
+            box.innerText = "✅ ENLACE VIABLE (Cumple Clase B+)";
+            box.className = "status-box status-ok";
+            document.getElementById('valEstado').innerText = "OK";
+        } else {
+            box.innerText = "❌ FALLO CRÍTICO (Potencia insuficiente)";
+            box.className = "status-box status-fail";
+            document.getElementById('valEstado').innerText = "FAIL";
+        }
+        document.getElementById('valMargen').innerText = (28.0 - totalLoss).toFixed(2) + " dB";
+
+        // 3. FASE TRÁFICO (Simulación Probabilística)
+        const resultados = [];
+        const servicios = ['Video 🎥', 'Voz 📞', 'Datos 🌐'];
+        
+        // Colores para la gráfica
+        const colores = []; 
+        const labels = [];
+        const dataJitter = [];
+
+        const tabla = document.getElementById('tablaCuerpo');
+        tabla.innerHTML = ""; // Limpiar tabla
+
+        for (let i = 0; i < onus; i++) {
+            const servicio = servicios[i % 3];
+            let jitter, delay, color;
+
+            // Simulación de Jitter según servicio (Lógica de Python portada)
+            if (servicio.includes('Voz')) {
+                // Voz es estable
+                jitter = Math.random() * 2 + 1; // 1-3 ms
+                delay = Math.random() * 5 + 10;
+                color = '#10b981'; // Verde
+            } else if (servicio.includes('Video')) {
+                // Video es bursty (más jitter)
+                jitter = Math.random() * 15 + 10; // 10-25 ms
+                delay = Math.random() * 20 + 20;
+                color = '#f59e0b'; // Naranja
+            } else {
+                // Datos es aleatorio
+                jitter = Math.random() * 30 + 5; // 5-35 ms
+                delay = Math.random() * 50 + 10;
+                color = '#3b82f6'; // Azul
+            }
+
+            // Guardar datos
+            labels.push(`ONU ${i+1}`);
+            dataJitter.push(jitter);
+            colores.push(color);
+
+            // Llenar tabla HTML
+            const row = `<tr>
+                <td style="padding:10px; font-weight:bold;">ONU ${i+1}</td>
+                <td>${servicio}</td>
+                <td>${delay.toFixed(1)} ms</td>
+                <td>${jitter.toFixed(1)} ms</td>
+                <td>${jitter < 20 ? '🟢 Bueno' : '🟡 Regular'}</td>
+            </tr>`;
+            tabla.innerHTML += row;
+        }
+
+        // 4. GRAFICAR (Chart.js)
+        const ctx = document.getElementById('graficaResultados').getContext('2d');
+        
+        if (chartInstance) chartInstance.destroy(); // Limpiar anterior
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Jitter (ms) - Menos es mejor',
+                    data: dataJitter,
+                    backgroundColor: colores,
+                    borderWidth: 0,
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Milisegundos (ms)' } }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
