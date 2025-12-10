@@ -3,72 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador FTTH GPON - Monitor en Vivo</title>
+    <title>Simulador FTTH GPON - Proyecto Final</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
     <style>
-        :root { --primary: #3b82f6; --success: #10b981; --warning: #f59e0b; --danger: #ef4444; --bg: #f1f5f9; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
-        .container { max-width: 1100px; margin: 0 auto; padding-bottom: 50px; }
+        :root { --primary: #2563eb; --success: #10b981; --bg: #f8fafc; --dark: #0f172a; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #334155; }
+        .container { max-width: 1200px; margin: 0 auto; padding-bottom: 80px; }
         
-        header { text-align: center; margin-bottom: 30px; }
-        h1 { font-size: 2rem; color: #1e293b; margin: 0; }
-        p.subtitle { color: #64748b; margin-top: 5px; }
+        h1 { text-align: center; color: var(--dark); margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #64748b; margin-bottom: 40px; }
 
-        .dashboard { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+        .dashboard { display: grid; grid-template-columns: 320px 1fr; gap: 25px; }
         
-        /* Estilos Generales de Tarjetas y Inputs */
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px;}
-        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.85rem; color: #475569; }
-        input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 15px; box-sizing: border-box; }
+        /* Tarjetas */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        
+        /* Inputs y Botones */
+        label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; color: #475569; }
+        input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; }
         
         button { 
-            width: 100%; padding: 12px; background: var(--primary); color: white; 
-            border: none; border-radius: 8px; font-weight: 600; cursor: pointer; 
-            transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 15px; background: var(--primary); color: white; 
+            border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;
+            transition: transform 0.1s;
         }
-        button:hover { background: #2563eb; transform: translateY(-1px); }
-        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        button:hover { background: #1d4ed8; transform: scale(1.02); }
+        button:disabled { background: #94a3b8; cursor: wait; }
 
-        /* Monitor Visual (Negro) */
-        .monitor { background: #0f172a; color: #38bdf8; font-family: 'Courier New', monospace; padding: 20px; border-radius: 12px; min-height: 450px; position: relative; }
-        .phase { margin-bottom: 15px; opacity: 0.3; transition: all 0.5s ease; border-left: 2px solid #334155; padding-left: 15px; }
+        /* Monitor Negro */
+        .monitor { background: var(--dark); color: #38bdf8; font-family: 'Courier New', monospace; padding: 25px; border-radius: 12px; min-height: 500px; }
+        .console-header { border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 20px; font-size: 0.9rem; opacity: 0.7; }
+        
+        .phase { margin-bottom: 25px; opacity: 0.2; border-left: 3px solid #334155; padding-left: 20px; transition: opacity 0.5s; }
         .phase.active { opacity: 1; border-left-color: var(--success); }
-        .phase-title { font-weight: bold; font-size: 1.1rem; color: #e2e8f0; margin-bottom: 5px; }
-        .phase-detail { font-size: 0.9rem; color: #94a3b8; }
-        .log-item { margin-top: 5px; color: #cbd5e1; font-size: 0.85rem; }
+        .phase-title { font-size: 1.1rem; font-weight: bold; color: #f8fafc; margin-bottom: 5px; }
+        .log-content { font-size: 0.9rem; line-height: 1.6; color: #cbd5e1; }
+        
         .highlight { color: var(--success); font-weight: bold; }
-        .error { color: var(--danger); font-weight: bold; }
+        .error-text { color: #ef4444; font-weight: bold; }
 
-        /* Secciones de Resultados (Ocultas al inicio) */
-        .results-section { display: none; animation: fadeIn 1s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Mapa y Tablas */
+        .hidden { display: none; }
+        #network-map { width: 100%; height: 500px; background: #f1f5f9; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 10px; }
+        
+        /* ESTILOS DE TABLA (Mejorados) */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95rem; }
+        thead { background-color: #f1f5f9; }
+        th { text-align: left; padding: 12px; color: #475569; border-bottom: 2px solid #e2e8f0; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:hover { background-color: #f8fafc; }
+        
+        /* Badges de servicio */
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        .b-video { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+        .b-voz { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+        .b-datos { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
 
-        /* Tabla */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
-        th { text-align: left; padding: 8px; border-bottom: 2px solid #e2e8f0; color: #64748b; }
-        td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
-        .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: bold; }
-        .bg-video { background: #fff7ed; color: #c2410c; }
-        .bg-voz { background: #f0fdf4; color: #15803d; }
-        .bg-datos { background: #eff6ff; color: #1d4ed8; }
+        /* Barra de Progreso */
+        .progress-track { background: #334155; height: 6px; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+        .progress-fill { background: var(--success); height: 100%; width: 0%; transition: width 0.2s; }
 
-        /* Loading Bar */
-        .progress-container { width: 100%; background: #334155; height: 4px; margin-top: 10px; border-radius: 2px; display: none; }
-        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: width 0.2s; }
-
-        /* ESTILO PARA EL MAPA DE RED (NUEVO) */
-        #network-map {
-            width: 100%;
-            height: 500px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            background-color: #f8fafc;
-        }
-
-        @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -76,272 +75,282 @@
 <div class="container">
     <header>
         <h1>📡 Simulador FTTH GPON</h1>
-        <p class="subtitle">Validación de Requisitos Técnicos y Visualización de Topología</p>
+        <p class="subtitle">Validación Técnica, Tráfico y Topología Visual</p>
     </header>
 
     <div class="dashboard">
-        <div>
+        <div class="sidebar">
             <div class="card">
-                <h3>⚙️ Parámetros de Entrada</h3>
-                <label>Número de Usuarios (ONUs)</label>
+                <h3>🛠️ Configuración</h3>
+                
+                <label>Usuarios (ONUs)</label>
                 <input type="number" id="numOnus" value="8" min="1" max="32">
-                <small style="color:#64748b; display:block; margin-top:-10px; margin-bottom:10px;">Máx. recomendado visualmente: 32</small>
+                <small style="display:block; margin-top:-15px; margin-bottom:15px; color:#94a3b8; font-size:0.8rem">Recomendado: 5 a 16</small>
                 
                 <label>Distancia Feeder (OLT-Splitter) km</label>
                 <input type="number" id="feederKm" value="20.0">
                 
                 <label>Distancia Drop (Splitter-ONU) km</label>
                 <input type="number" id="dropKm" value="2.0">
-
-                <button id="btnSimular" onclick="iniciarSecuencia()">
-                    <span>▶ INICIAR SIMULACIÓN</span>
+                
+                <button id="btnRun" onclick="ejecutarTodo()">
+                    ▶ INICIAR SIMULACIÓN
                 </button>
             </div>
 
-            <div id="resumenFinal" class="card results-section" style="text-align: center;">
-                <h3>Resultado Global</h3>
-                <div style="font-size: 2.5rem; margin: 10px 0;" id="iconoResultado">❓</div>
-                <div id="textoResultado" style="font-weight: bold; color: #64748b;">Esperando...</div>
+            <div id="resultCard" class="card hidden" style="text-align: center;">
+                <h3>Estado del Proyecto</h3>
+                <div id="finalIcon" style="font-size: 3rem; margin: 10px 0;"></div>
+                <div id="finalText" style="font-weight: bold; font-size: 1.2rem;"></div>
             </div>
         </div>
 
-        <div class="monitor" id="monitor">
-            <div style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
-                >_ SYSTEM CONSOLE | STATUS: READY
+        <div class="monitor">
+            <div class="console-header">> SYSTEM CONSOLE | READY...</div>
+            
+            <div id="phase1" class="phase">
+                <div class="phase-title">1. ANÁLISIS DE CAPA FÍSICA</div>
+                <div class="log-content" id="log1">Esperando inicio...</div>
             </div>
 
-            <div id="fase1" class="phase">
-                <div class="phase-title">1. ANÁLISIS DE CAPA FÍSICA (Link Budget)</div>
-                <div class="phase-detail">Validando atenuación contra estándar ITU-T G.984...</div>
-                <div id="logFase1" class="log-item"></div>
-            </div>
-
-            <div id="fase2" class="phase">
-                <div class="phase-title">2. GENERACIÓN DE TRÁFICO (Triple Play)</div>
-                <div class="phase-detail">Simulando perfiles: Voz (CBR), Video (VBR), Datos.</div>
-                <div class="progress-container" id="progressBarCtn">
-                    <div class="progress-bar" id="progressBar"></div>
+            <div id="phase2" class="phase">
+                <div class="phase-title">2. TRÁFICO TRIPLE PLAY</div>
+                <div class="progress-track hidden" id="progTrack">
+                    <div class="progress-fill" id="progFill"></div>
                 </div>
-                <div id="logFase2" class="log-item"></div>
+                <div class="log-content" id="log2">Pendiente...</div>
             </div>
 
-            <div id="fase3" class="phase">
-                <div class="phase-title">3. EVALUACIÓN QoS (Jitter & Delay)</div>
-                <div class="phase-detail">Calculando métricas de rendimiento y DBA...</div>
-                <div class="card results-section" style="background: rgba(255,255,255,0.05); margin-top:10px; padding:10px;">
-                    <canvas id="graficaResultados" height="150"></canvas>
+            <div id="phase3" class="phase">
+                <div class="phase-title">3. MÉTRICAS QoS</div>
+                <div class="log-content" id="log3">
+                    <canvas id="qosChart" height="150" style="margin-top:15px"></canvas>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="card results-section" style="margin-top: 30px;">
-        <h3>📍 Mapa de Topología de Red Generado</h3>
-        <p style="color:#64748b; font-size: 0.9rem;">Visualización dinámica basada en los parámetros de distancia configurados. Puedes arrastrar los nodos.</p>
+
+    <div id="mapSection" class="card hidden" style="margin-top: 30px;">
+        <h3>📍 Mapa de Topología Generado</h3>
+        <p style="color:#64748b; font-size:0.9rem">Visualización dinámica de la red. Puedes arrastrar y mover los nodos.</p>
         <div id="network-map"></div>
     </div>
 
-    <div class="card results-section" id="tablaResultados" style="margin-top: 30px;">
-        <h3>📋 Reporte Detallado de Métricas</h3>
-        <table>
+    <div id="tableSection" class="card hidden">
+        <h3>📋 Reporte Detallado por ONU</h3>
+        <p style="color:#64748b; font-size:0.9rem">Métricas individuales de rendimiento y calidad de servicio.</p>
+        <table id="dataTable">
             <thead>
                 <tr>
-                    <th>ONU ID</th>
-                    <th>Perfil de Servicio</th>
-                    <th>Delay (Latencia)</th>
-                    <th>Jitter (Estabilidad)</th>
-                    <th>Estado</th>
+                    <th style="width: 15%;">ONU ID</th>
+                    <th style="width: 25%;">Perfil de Servicio</th>
+                    <th style="width: 20%;">Delay (Latencia)</th>
+                    <th style="width: 20%;">Jitter (Variación)</th>
+                    <th style="width: 20%;">Estado QoS</th>
                 </tr>
             </thead>
-            <tbody id="tablaCuerpo">
+            <tbody>
                 </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // --- Utilidades ---
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-    let chartInstance = null;
-    let networkInstance = null; // Para el mapa
+    // --- MANEJO DE ERRORES ---
+    window.onerror = function(msg, url, line) {
+        alert("⚠️ Ocurrió un error:\n" + msg);
+        document.getElementById('btnRun').disabled = false;
+        document.getElementById('btnRun').innerText = "REINTENTAR";
+    };
 
-    // --- FUNCIÓN PRINCIPAL QUE CORRE TODO ---
-    async function iniciarSecuencia() {
-        console.log("Iniciando simulación...");
+    // --- VARIABLES GLOBALES ---
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    let chartObj = null;
+    let networkObj = null;
 
-        // 1. Obtener parámetros
-        const onus = parseInt(document.getElementById('numOnus').value);
-        const feeder = parseFloat(document.getElementById('feederKm').value);
-        const drop = parseFloat(document.getElementById('dropKm').value);
-
-        // 2. Reset UI
-        prepareUI();
-
-        // 3. Correr Fases del Monitor (Animación)
-        const fisicoAprobado = await runPhysicalPhase(feeder, drop);
-        await runTrafficPhase();
-        await runQoSPhase(onus);
-        
-        // 4. Mostrar Resultados Finales
-        finalizeUI(fisicoAprobado);
-
-        // 5. --- NUEVO: GENERAR EL MAPA ---
-        drawNetworkMap(onus, feeder, drop);
-    }
-
-    // --- Funciones Auxiliares de UI y Lógica ---
-    function prepareUI() {
-        document.getElementById('btnSimular').disabled = true;
-        document.querySelectorAll('.phase').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.results-section').forEach(el => el.style.display = 'none');
-        document.getElementById('logFase1').innerHTML = "";
-        document.getElementById('logFase2').innerHTML = "";
-    }
-
-    async function runPhysicalPhase(feeder, drop) {
-        document.getElementById('fase1').classList.add('active');
-        await sleep(600);
-        const lossFiber = (feeder + drop) * 0.2;
-        const lossSplitter = 17.5;
-        const margin = 2.5;
-        const totalLoss = lossFiber + lossSplitter + margin;
-        
-        const log1 = document.getElementById('logFase1');
-        log1.innerHTML += `> Calculando fibra (${feeder.toFixed(1)}+${drop.toFixed(1)}km)... <span class='highlight'>${lossFiber.toFixed(2)} dB</span><br>`;
-        await sleep(500);
-        log1.innerHTML += `> Sumando inserción Splitter (1:32)... <span class='highlight'>${lossSplitter} dB</span><br>`;
-        await sleep(500);
-        log1.innerHTML += `> TOTAL LINK LOSS (con margen): <span style='color:#fff; font-size:1.1em'>${totalLoss.toFixed(2)} dB</span><br>`;
-        
-        if (totalLoss <= 28.0) {
-            log1.innerHTML += `> VERIFICACIÓN: <span class='highlight'>✅ CUMPLE (Clase B+ < 28dB)</span>`;
-            await sleep(800);
-            return true;
-        } else {
-            log1.innerHTML += `> VERIFICACIÓN: <span class='error'>❌ FALLO (Potencia insuficiente)</span>`;
-            await sleep(800);
-            return false;
-        }
-    }
-
-    async function runTrafficPhase() {
-        document.getElementById('fase2').classList.add('active');
-        const pBar = document.getElementById('progressBar');
-        document.getElementById('progressBarCtn').style.display = 'block';
-        const log2 = document.getElementById('logFase2');
-        log2.innerHTML = "> Inicializando entorno de simulación de eventos discretos...<br>";
-        for(let i=0; i<=100; i+=10) {
-            pBar.style.width = i + '%';
-            if(i % 30 === 0 && i > 0) log2.innerHTML += `> Inyectando tráfico Triple Play [T=${i/10}s]...<br>`;
-            await sleep(150);
-        }
-        log2.innerHTML += `> <span class='highlight'>Simulación de tráfico completada.</span>`;
-        await sleep(500);
-    }
-
-    async function runQoSPhase(onus) {
-        document.getElementById('fase3').classList.add('active');
-        // Lógica de generación de datos simulados (igual que antes)
-        const labels = [], dataJitter = [], colores = [];
-        const tbody = document.getElementById('tablaCuerpo');
-        tbody.innerHTML = "";
-        const servicios = ['Video Streaming 🎥', 'Voz VoIP 📞', 'Navegación Web 🌐'];
-        const clasesCSS = ['bg-video', 'bg-voz', 'bg-datos'];
-
-        for(let i=0; i<onus; i++) {
-            const tipoIdx = i % 3;
-            const servicio = servicios[tipoIdx];
-            let jitter, delay, color;
-            if (tipoIdx === 0) { jitter = Math.random()*15+10; delay = Math.random()*20+30; color = '#f97316'; }
-            else if (tipoIdx === 1) { jitter = Math.random()*2+0.5; delay = Math.random()*5+5; color = '#22c55e'; }
-            else { jitter = Math.random()*25+5; delay = Math.random()*40+10; color = '#3b82f6'; }
-
-            labels.push(`ONU ${i+1}`); dataJitter.push(jitter); colores.push(color);
-            tbody.innerHTML += `<tr><td><b>ONU ${i+1}</b></td><td><span class="badge ${clasesCSS[tipoIdx]}">${servicio}</span></td><td>${delay.toFixed(1)} ms</td><td>${jitter.toFixed(1)} ms</td><td>${jitter < 20 ? '🟢 Óptimo' : '🟡 Aceptable'}</td></tr>`;
-        }
-        document.querySelectorAll('.results-section').forEach(el => el.style.display = 'block');
-        renderizarGrafica(labels, dataJitter, colores);
-    }
-
-    function finalizeUI(fisicoAprobado) {
-        const icono = document.getElementById('iconoResultado');
-        const texto = document.getElementById('textoResultado');
-        if(fisicoAprobado) {
-            icono.innerText = "✅"; texto.innerText = "PROYECTO VIABLE"; texto.style.color = "#10b981";
-        } else {
-            icono.innerText = "❌"; texto.innerText = "NO VIABLE (Física)"; texto.style.color = "#ef4444";
-        }
-        document.getElementById('btnSimular').disabled = false;
-    }
-
-    function renderizarGrafica(labels, data, colors) {
-        const ctx = document.getElementById('graficaResultados').getContext('2d');
-        if (chartInstance) chartInstance.destroy();
-        Chart.defaults.color = '#94a3b8';
-        chartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: { labels: labels, datasets: [{ label: 'Jitter (ms)', data: data, backgroundColor: colors, borderRadius: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
-        });
-    }
-
-    // --- NUEVA FUNCIÓN: DIBUJAR EL MAPA CON VIS.JS ---
-    function drawNetworkMap(numOnus, feederKm, dropKm) {
-        const container = document.getElementById('network-map');
-        
-        // 1. Definir Nodos
-        const nodesArray = [
-            { id: 1, label: 'OLT (Central)', color: '#ef4444', shape: 'box', font:{color:'white'} },
-            { id: 2, label: 'Splitter Óptico', color: '#f97316', shape: 'diamond', font:{color:'white'} }
-        ];
-
-        // Agregar ONUs dinámicamente
-        for (let i = 0; i < numOnus; i++) {
-            nodesArray.push({
-                id: 3 + i,
-                label: `ONU ${i + 1}\n(Usuario)`,
-                color: '#3b82f6',
-                shape: 'ellipse',
-                font:{color:'white'}
-            });
+    // --- FUNCIÓN PRINCIPAL ---
+    async function ejecutarTodo() {
+        // Validar librerías
+        if (typeof Chart === 'undefined' || typeof vis === 'undefined') {
+            alert("Error: No cargaron las librerías. Revisa tu conexión a internet.");
+            return;
         }
 
-        // 2. Definir Conexiones (Edges)
-        const edgesArray = [
-            // OLT -> Splitter
-            { from: 1, to: 2, label: `${feederKm} km`, font: {align: 'middle'}, arrows:'to', color:{color:'#cbd5e1'} }
-        ];
+        try {
+            // 1. PREPARAR UI
+            const btn = document.getElementById('btnRun');
+            btn.disabled = true;
+            btn.innerText = "PROCESANDO...";
+            
+            // Ocultar resultados previos
+            document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.hidden').forEach(h => h.classList.add('hidden'));
+            
+            const onus = parseInt(document.getElementById('numOnus').value);
+            const feeder = parseFloat(document.getElementById('feederKm').value);
+            const drop = parseFloat(document.getElementById('dropKm').value);
 
-        // Splitter -> ONUs
-        for (let i = 0; i < numOnus; i++) {
-            edgesArray.push({
-                from: 2,
-                to: 3 + i,
-                label: `${dropKm} km`,
-                font: {align: 'middle', size: 10},
-                arrows:'to',
-                color:{color:'#94a3b8'}
-            });
-        }
+            // 2. FASE 1: FÍSICA
+            document.getElementById('phase1').classList.add('active');
+            const log1 = document.getElementById('log1');
+            log1.innerHTML = "Calculando pérdidas ópticas...<br>";
+            await wait(600);
+            
+            const lossFiber = (feeder + drop) * 0.2;
+            const lossSplitter = 17.5; // 1:32
+            const margin = 2.0;
+            const total = lossFiber + lossSplitter + margin;
+            
+            log1.innerHTML += `Fibra (${feeder}+${drop}km): <b>${lossFiber.toFixed(2)} dB</b><br>`;
+            await wait(300);
+            log1.innerHTML += `Splitter + Margen: <b>${(lossSplitter+margin).toFixed(2)} dB</b><br>`;
+            await wait(300);
+            
+            let passed = false;
+            if(total <= 28.0) {
+                log1.innerHTML += `TOTAL: <span class="highlight">${total.toFixed(2)} dB</span> (✔ Cumple G.984)`;
+                passed = true;
+            } else {
+                log1.innerHTML += `TOTAL: <span class="error-text">${total.toFixed(2)} dB</span> (❌ Excede 28dB)`;
+            }
+            await wait(600);
 
-        const data = { nodes: new vis.DataSet(nodesArray), edges: new vis.DataSet(edgesArray) };
+            // 3. FASE 2: TRÁFICO
+            document.getElementById('phase2').classList.add('active');
+            const log2 = document.getElementById('log2');
+            const pTrack = document.getElementById('progTrack');
+            const pFill = document.getElementById('progFill');
+            
+            log2.innerHTML = "Iniciando motor de eventos discretos...";
+            pTrack.classList.remove('hidden');
+            
+            for(let i=0; i<=100; i+=10) {
+                pFill.style.width = i + "%";
+                if(i % 30 === 0 && i > 0) log2.innerHTML = `Simulando paquetes... ${i}%`;
+                await wait(100);
+            }
+            log2.innerHTML = `<span class="highlight">Tráfico Triple Play generado correctamente.</span>`;
+            await wait(500);
 
-        // 3. Opciones de Diseño (Jerárquico para que parezca árbol)
-        const options = {
-            layout: {
-                hierarchical: {
-                    direction: 'LR', // Izquierda a Derecha (Left to Right)
-                    sortMethod: 'directed',
-                    levelSeparation: 200,
-                    nodeSpacing: 100
+            // 4. FASE 3: RESULTADOS Y TABLA
+            document.getElementById('phase3').classList.add('active');
+            
+            // Generar Datos
+            const labels = [];
+            const dataJitter = [];
+            const colors = [];
+            const tbody = document.querySelector("#dataTable tbody");
+            tbody.innerHTML = "";
+
+            const services = ['Video 4K 🎥', 'Voz VoIP 📞', 'Datos Web 🌐'];
+            const classes = ['b-video', 'b-voz', 'b-datos'];
+
+            for(let i=0; i<onus; i++) {
+                const typeIdx = i % 3;
+                let jitter, delay, color;
+                
+                // Simulación de valores realistas
+                if(typeIdx === 0) { // Video
+                    jitter = Math.random()*15 + 10; // Alto jitter
+                    delay = 35.0; 
+                    color = '#f97316'; 
+                } else if(typeIdx === 1) { // Voz
+                    jitter = Math.random()*2 + 1; // Bajo jitter
+                    delay = 5.0; 
+                    color = '#22c55e'; 
+                } else { // Datos
+                    jitter = Math.random()*25 + 5; 
+                    delay = 15.0; 
+                    color = '#3b82f6'; 
                 }
-            },
-            physics: false // Desactivar física para que quede estático y ordenado
-        };
+                
+                labels.push(`ONU ${i+1}`);
+                dataJitter.push(jitter);
+                colors.push(color);
+                
+                // --- AQUÍ SE LLENA LA TABLA ---
+                const row = `<tr>
+                    <td><b>ONU ${i+1}</b></td>
+                    <td><span class="badge ${classes[typeIdx]}">${services[typeIdx]}</span></td>
+                    <td>${delay.toFixed(1)} ms</td>
+                    <td>${jitter.toFixed(1)} ms</td>
+                    <td>${jitter < 20 ? '<span style="color:#10b981">● Bueno</span>' : '<span style="color:#f59e0b">● Regular</span>'}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            }
 
-        // 4. Renderizar
-        if (networkInstance) networkInstance.destroy();
-        networkInstance = new vis.Network(container, data, options);
+            // Renderizar Gráfica Monitor
+            if(chartObj) chartObj.destroy();
+            const ctx = document.getElementById('qosChart').getContext('2d');
+            Chart.defaults.color = '#94a3b8';
+            chartObj = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Jitter (ms)', data: dataJitter, backgroundColor: colors }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // MOSTRAR SECCIONES OCULTAS
+            document.getElementById('resultCard').classList.remove('hidden');
+            document.getElementById('mapSection').classList.remove('hidden');
+            document.getElementById('tableSection').classList.remove('hidden'); // MOSTRAR TABLA
+            
+            // Resultado Final
+            const fIcon = document.getElementById('finalIcon');
+            const fText = document.getElementById('finalText');
+            if(passed) {
+                fIcon.innerText = "✅";
+                fText.innerText = "PROYECTO VIABLE";
+                fText.style.color = "#10b981";
+            } else {
+                fIcon.innerText = "❌";
+                fText.innerText = "NO VIABLE";
+                fText.style.color = "#ef4444";
+            }
+
+            // Dibujar Mapa
+            dibujarMapa(onus, feeder, drop);
+
+            btn.disabled = false;
+            btn.innerText = "REINICIAR";
+
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+        }
+    }
+
+    // --- DIBUJAR MAPA (VIS.JS) ---
+    function dibujarMapa(n, f, d) {
+        const nodes = [
+            { id: 1, label: 'OLT', shape: 'box', color: '#ef4444', font:{color:'white'} },
+            { id: 2, label: 'Splitter', shape: 'diamond', color: '#f97316', font:{color:'white'} }
+        ];
+        const edges = [
+            { from: 1, to: 2, label: f + ' km', arrows:'to', font:{align:'middle'} }
+        ];
+
+        for(let i=0; i<n; i++) {
+            nodes.push({ id: 3+i, label: `ONU ${i+1}`, shape: 'ellipse', color: '#3b82f6', font:{color:'white'} });
+            edges.push({ from: 2, to: 3+i, label: d + ' km' });
+        }
+
+        const container = document.getElementById('network-map');
+        const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+        const options = {
+            layout: { hierarchical: { direction: 'LR', sortMethod: 'directed' } },
+            physics: false
+        };
+        
+        if(networkObj) networkObj.destroy();
+        networkObj = new vis.Network(container, data, options);
     }
 </script>
 
